@@ -26,10 +26,12 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/rsa.h>
+#include <openssl/engine.h>
 
 #include "../print_hex.h"
 
@@ -40,7 +42,7 @@ void handleErrors(void)
 }
 
 void CheckError(int state) {
-    if (state != 1) {
+    if (!state) {
         printf("State: %d\n", state);
         handleErrors();
     }
@@ -55,6 +57,44 @@ void generate_rsa_keys(EVP_PKEY* priKey, EVP_PKEY* pubKey)
     RSA_generate_key_ex(rsa, 2048, e, NULL);
     CheckError(EVP_PKEY_assign_RSA(priKey, RSAPrivateKey_dup(rsa)));
     CheckError(EVP_PKEY_assign_RSA(pubKey, RSAPublicKey_dup(rsa)));
+}
+
+void rsa_encrypt(uint8_t* encrypted, const uint8_t* pt, size_t ptlen, EVP_PKEY* pubkey)
+{
+    EVP_PKEY_CTX *ctx;
+    ENGINE *eng = NULL;
+    size_t enclen;
+    
+    ctx = EVP_PKEY_CTX_new(pubkey, eng);
+    if (!ctx) {
+        handleErrors();
+    }
+        
+    CheckError(EVP_PKEY_encrypt_init(ctx));        
+    CheckError(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING));
+    CheckError(EVP_PKEY_encrypt(ctx, NULL, &enclen, pt, ptlen));
+    CheckError(EVP_PKEY_encrypt(ctx, encrypted, &enclen, pt, ptlen));
+
+    EVP_PKEY_CTX_free(ctx);
+}
+
+void rsa_decrypt(uint8_t* decrypted, const uint8_t* ct, size_t ctlen, EVP_PKEY* prikey) 
+{
+    EVP_PKEY_CTX *ctx;
+    ENGINE *eng = NULL;
+    size_t declen;
+    
+    ctx = EVP_PKEY_CTX_new(prikey, eng);
+    if (!ctx) {
+        handleErrors();
+    }
+        
+    CheckError(EVP_PKEY_decrypt_init(ctx));        
+    CheckError(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING));
+    CheckError(EVP_PKEY_decrypt(ctx, NULL, &declen, ct, ctlen));
+    CheckError(EVP_PKEY_decrypt(ctx, decrypted, &declen, ct, ctlen));
+
+    EVP_PKEY_CTX_free(ctx);
 }
 
 int envelope_seal(EVP_PKEY **pub_key, const uint8_t* plaintext, size_t plaintext_len,
@@ -134,7 +174,61 @@ void verify(EVP_PKEY* key, const uint8_t* msg, size_t msg_length, uint8_t* sig, 
     EVP_MD_CTX_free(ctx);
 }
 
-int main()
+void test_encrypt()
+{
+    uint8_t pt[48] = {1, };
+    uint8_t enc[512] = {0 };
+    uint8_t dec[512] = {0,};
+
+    EVP_PKEY *priKey = EVP_PKEY_new();
+    EVP_PKEY *pubKey = EVP_PKEY_new();
+    generate_rsa_keys(priKey, pubKey);
+
+    rsa_encrypt(enc, pt, 48, pubKey);
+    rsa_decrypt(dec, enc, 256, priKey);
+
+    print_title("Test RSA Encrypt/Decrypt");
+    print_hex_multiline("enc", enc, 256);
+    print_hex_multiline("dec", dec, 48);
+    print_hex_multiline("pt", pt, 48);
+}
+
+void test_seal()
+{
+    uint8_t pt[48] = {0};
+    uint8_t iv[16] = {0};
+    uint8_t working_iv[16] = {0};
+    uint8_t *ek = NULL;
+    uint8_t encrypted[256] = {0};
+    uint8_t decrypted[256] = {1};
+    
+    size_t ptlen = 48;
+    size_t enclen, declen;
+    int eklen = 1024;    
+
+    EVP_PKEY *priKey = EVP_PKEY_new();
+    EVP_PKEY *pubKey = EVP_PKEY_new();
+    generate_rsa_keys(priKey, pubKey);
+
+    printf("key size: %d\n", EVP_PKEY_size(pubKey));
+
+    // key and iv are randomly generated
+    ek = malloc(EVP_PKEY_size(pubKey));    
+    enclen = envelope_seal(&pubKey, pt, ptlen, &ek, &eklen, iv, encrypted);
+    declen = envelope_open(priKey, encrypted, enclen, ek, eklen, iv, decrypted);
+
+    print_title("Test Seal");
+    
+    print_hex_multiline("pt", pt, ptlen);
+    print_hex_multiline("iv", iv, 16);
+
+    print_hex_multiline("enc", encrypted, enclen);
+    print_hex_multiline("dec", decrypted, declen);
+
+    free(ek);
+}
+
+void test_sign()
 {
     OpenSSL_add_all_algorithms();
 
@@ -147,8 +241,15 @@ int main()
     sign(priKey, "abcde", 5, sig, &slen);
     verify(pubKey, "abcde", 5, sig, slen);
 
-    printf("SLEN: %ld\n", slen);
+    print_title("Test RSA Signature");
     print_hex_multiline("SIGN", sig, slen);
+}
+
+int main()
+{
+    test_encrypt();
+    test_seal();
+    test_sign();
 
     return 0;
 }

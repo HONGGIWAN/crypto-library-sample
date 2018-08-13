@@ -31,6 +31,14 @@
 #include <stddef.h>
 #include <stdio.h>
 
+static void print_title(const char* title)
+{
+    printf("\n");
+    printf("********************************************************************************\n");
+    printf("* %s\n", title);
+    printf("********************************************************************************\n");
+}
+
 static inline void print_hex(const char* title, const uint8_t* data, size_t count) {
     printf("%s: ", title);
     for (int i = 0; i < count; ++i) {
