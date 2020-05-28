@@ -206,6 +206,7 @@ void lea_gcm_sample()
     printf("LEA_256_GCM\n");
 	print_hex("    pt", pt, msglen);
 	print_hex("    ct", encrypted, msglen);
+    print_hex("   aad", aad, aadlen);
 	print_hex("   tag", tag, taglen);
 
 	print_hex("   dec", decrypted, msglen);

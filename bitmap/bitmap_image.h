@@ -22,43 +22,46 @@
  * THE SOFTWARE.
  */
 
+#include <cstdint>
 
-#pragma once
+typedef struct __attribute__((packed)) {
+    uint16_t magic;
+    uint32_t filesize;
+    uint16_t reserved1;
+    uint16_t reserved2;
+    uint32_t offset;
+} BitmapFileHeader;
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdio.h>
+typedef struct __attribute__((packed)) {
+    uint32_t headersize;
+    uint32_t width;
+    uint32_t height;
+    uint16_t countColorPlanes;
+    uint16_t bitsPerPixel;
+    uint32_t compressionMethod;
+    uint32_t imageSize;
+    uint32_t horizontalResolution;
+    uint32_t verticalResolution;
+    uint32_t countColors;
+    uint32_t countImportantColors;
+} BitmapInfoHeader;
 
-static void print_title(const char* title)
-{
-    printf("\n");
-    printf("********************************************************************************\n");
-    printf("* %s\n", title);
-    printf("********************************************************************************\n");
-}
+class BitmapImage {
+    private:
+        BitmapFileHeader fileHeader;
+        BitmapInfoHeader infoHeader;
+        uint8_t* rawData;
 
-static inline void print_hex(const char* title, const uint8_t* data, size_t count) {
-    printf("%s: ", title);
-    for (int i = 0; i < count; ++i) {
-        printf("%02x", data[i]);
+    public:
+        BitmapImage();
+        ~BitmapImage();
 
-        if (((i + 1) & 0x3) == 0) {
-            printf(" ");
-        }
-    }
-    printf("\n");
-}
+        void load(const char* filepath);
+        void save(const char* filepath);
 
-static inline void print_hex_multiline(const char* title, const uint8_t* data, size_t count) {
-    printf("%s:\n", title);
-    for (int i = 0; i < count; ++i) {
-        printf("%02x", data[i]);
+        uint8_t* data();
+        uint32_t datasize() const;
+        void printInfo() const;
 
-        if (((i + 1) & 0x1f) == 0) {
-            printf("\n");
-        } else if (((i + 1) & 0x3) == 0) {
-            printf(" ");
-        }
-    }
-    printf("\n");
-}
+        static BitmapImage diff(const BitmapImage& lhs, const BitmapImage& rhs);
+};

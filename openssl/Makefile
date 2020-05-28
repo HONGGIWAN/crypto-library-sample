@@ -1,24 +1,31 @@
 CC = gcc
-TARGET = openssl_aes openssl_evp openssl_hash openssl_mac openssl_rsa
+CFLAGS = -O2
+CXX = g++
+CXXFLAGS = -O2
+TARGET = openssl_aes openssl_evp openssl_hash openssl_mac openssl_rsa encrypt_bmp
+LDFLAGS = -lcrypto
 
 .PHONY: all clean
 
 all : $(TARGET)
 
 openssl_aes:
-	$(CC) $@.c -o $@ -lcrypto
+	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
 
 openssl_evp:
-	$(CC) $@.c -o $@ -lcrypto
+	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
 
 openssl_hash:
-	$(CC) $@.c -o $@ -lcrypto
+	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
 
 openssl_mac:
-	$(CC) $@.c -o $@ -lcrypto
+	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
 	
 openssl_rsa:
-	$(CC) $@.c -o $@ -lcrypto
+	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
+
+encrypt_bmp: encrypt_bmp.cpp ../bitmap/bitmap_image.cpp
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 clean:
 	rm $(TARGET) -rf

@@ -1,28 +1,25 @@
 /**
- * MIT License
+ * The MIT License
+ *
+ * Copyright (c) 2018-2020 Ilwoong Jeong (https://github.com/ilwoong)
  * 
- * Copyright (c) 2018 Ilwoong Jeong, https://github.com/ilwoong
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <stdint.h>
@@ -48,18 +45,35 @@ void CheckError(int state) {
     }
 }
 
-size_t aes_evp_encrypt_with_iv(uint8_t* ct, const uint8_t* pt, size_t pt_len, const EVP_CIPHER* type, const uint8_t* key, const uint8_t* iv) 
+EVP_CIPHER_CTX* get_encrypt_ctx(const EVP_CIPHER* cipher_mode, const uint8_t* key, const uint8_t* iv) 
 {
-    int len = 0;    
-    size_t ct_len = 0;
-    
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if(ctx == NULL) {
         handleErrors();
     }
 
-    CheckError(EVP_EncryptInit_ex(ctx, type, NULL, key, iv));
+    CheckError(EVP_EncryptInit_ex(ctx, cipher_mode, NULL, key, iv));
 
+    return ctx;
+}
+
+EVP_CIPHER_CTX* get_decrypt_ctx(const EVP_CIPHER* cipher_mode, const uint8_t* key, const uint8_t* iv) 
+{
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if(ctx == NULL) {
+        handleErrors();
+    }
+
+    CheckError(EVP_DecryptInit_ex(ctx, cipher_mode, NULL, key, iv));
+
+    return ctx;
+}
+
+size_t evp_encrypt(uint8_t* ct, const uint8_t* pt, size_t pt_len, EVP_CIPHER_CTX* ctx) 
+{
+    int len = 0;    
+    size_t ct_len = 0;
+    
     CheckError(EVP_EncryptUpdate(ctx, ct, &len, pt, pt_len));    
     ct_len = len;
 
@@ -71,18 +85,10 @@ size_t aes_evp_encrypt_with_iv(uint8_t* ct, const uint8_t* pt, size_t pt_len, co
     return ct_len;
 }
 
-size_t aes_evp_decrypt_with_iv(uint8_t* pt, const uint8_t* ct, size_t ct_len, const EVP_CIPHER* type, const uint8_t* key, const uint8_t* iv)
+size_t evp_decrypt(uint8_t* pt, const uint8_t* ct, size_t ct_len, EVP_CIPHER_CTX* ctx)
 {
-    int state = 0;
     int len = 0;
     size_t pt_len = 0;
-    
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    if(ctx == NULL) {
-        handleErrors();
-    }
-
-    CheckError(EVP_DecryptInit_ex(ctx, type, NULL, key, iv));
         
     CheckError(EVP_DecryptUpdate(ctx, pt, &len, ct, ct_len));    
     pt_len = len;
@@ -95,7 +101,7 @@ size_t aes_evp_decrypt_with_iv(uint8_t* pt, const uint8_t* ct, size_t ct_len, co
     return pt_len;
 }
 
-int encrypt_gcm(const EVP_CIPHER* cipher, const uint8_t* plaintext, size_t plaintext_len, 
+int evp_gcm_encrypt(const EVP_CIPHER* cipher, const uint8_t* plaintext, size_t plaintext_len, 
     const uint8_t* aad, size_t aad_len, const uint8_t* key, const uint8_t* iv, size_t iv_len,
 	uint8_t* ciphertext, uint8_t* tag)
 {
@@ -126,7 +132,7 @@ int encrypt_gcm(const EVP_CIPHER* cipher, const uint8_t* plaintext, size_t plain
 	return ciphertext_len;
 }
 
-int decrypt_gcm(const EVP_CIPHER* cipher, const uint8_t* ciphertext, size_t ciphertext_len, 
+int evp_gcm_decrypt(const EVP_CIPHER* cipher, const uint8_t* ciphertext, size_t ciphertext_len, 
     const uint8_t* aad,	size_t aad_len, uint8_t *tag, 
     const uint8_t *key, const uint8_t* iv, size_t iv_len, uint8_t *plaintext)
 {
@@ -168,7 +174,7 @@ int decrypt_gcm(const EVP_CIPHER* cipher, const uint8_t* ciphertext, size_t ciph
 void aes_gcm_sample()
 {
     uint8_t key[32] = {0, };
-    uint8_t iv[16] = {0, };
+    uint8_t iv[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0};
 
     uint8_t pt[32] = { 0, };
     uint8_t enc[32] = { 0, };
@@ -178,8 +184,8 @@ void aes_gcm_sample()
     int ret = 0;
 
     const EVP_CIPHER* cipher = EVP_aes_256_gcm();
-    encrypt_gcm(cipher, pt, 32, aad, 16, key, iv, 16, enc, tag);
-    ret = decrypt_gcm(cipher, enc, 32, aad, 16, tag, key, iv, 16, dec);
+    evp_gcm_encrypt(cipher, pt, 32, aad, 16, key, iv, 16, enc, tag);
+    ret = evp_gcm_decrypt(cipher, enc, 32, aad, 16, tag, key, iv, 16, dec);
 
     printf("AES_256_GCM\n");
     print_hex("    enc", enc, 32);
@@ -189,6 +195,12 @@ void aes_gcm_sample()
         print_hex("    dec", dec, 32);
     } else {
         printf("    dec: decryption failed\n");
+    }
+}
+
+static void makeSequelData(uint8_t* data, uint8_t start, size_t length) {
+    for (int i = 0; i < length; ++i) {
+        data[i] = (start++);
     }
 }
 
@@ -205,10 +217,18 @@ void aes_evp_sample(const EVP_CIPHER* cipher, bool useRandom)
     if (useRandom) {
         RAND_bytes(key, 32);
         RAND_bytes(iv, 16);
+        RAND_bytes(pt, 32);
+    } else {
+        makeSequelData(key, 0, 32);
+        makeSequelData(iv, 32, 16);
+        makeSequelData(pt, 48, 32);
     }
+
+    EVP_CIPHER_CTX* enc_ctx = get_encrypt_ctx(cipher, key, iv);
+    EVP_CIPHER_CTX* dec_ctx = get_decrypt_ctx(cipher, key, iv);
     
-    int enclen = aes_evp_encrypt_with_iv(encrypted, pt, length, cipher, key, iv);
-    int declen = aes_evp_decrypt_with_iv(decrypted, encrypted, enclen, cipher, key, iv);
+    int enclen = evp_encrypt(encrypted, pt, length, enc_ctx);
+    int declen = evp_decrypt(decrypted, encrypted, enclen, dec_ctx);
 
     printf("%s\n", EVP_CIPHER_name(cipher));    
     print_hex("    ENC", encrypted, enclen);    
@@ -216,13 +236,15 @@ void aes_evp_sample(const EVP_CIPHER* cipher, bool useRandom)
     printf("\n");
 }
 
-int main()
+int main(int argc, const char** argv)
 {
-    aes_evp_sample(EVP_aes_256_ecb(), false);
-    aes_evp_sample(EVP_aes_256_cbc(), false);
-    aes_evp_sample(EVP_aes_256_cfb(), false);
-    aes_evp_sample(EVP_aes_256_ofb(), false);
-    aes_evp_sample(EVP_aes_256_ctr(), false);
+    bool useRandomData = false;
+
+    aes_evp_sample(EVP_aes_256_ecb(), useRandomData);
+    aes_evp_sample(EVP_aes_256_cbc(), useRandomData);
+    aes_evp_sample(EVP_aes_256_cfb(), useRandomData);
+    aes_evp_sample(EVP_aes_256_ofb(), useRandomData);
+    aes_evp_sample(EVP_aes_256_ctr(), useRandomData);
     aes_gcm_sample();
 
     return 0;
